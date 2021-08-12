@@ -39,6 +39,5 @@ jobs:
 
       - name: Install dependencies 👨🏻‍💻
         run: npm ci --prefer-offline --no-audit
-
       - run: npm run build --if-present
-      - run: npm start
+      - run: npm test
