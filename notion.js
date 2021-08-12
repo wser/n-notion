@@ -1,24 +1,35 @@
-const { Client } = require("@notionhq/client")
+const { Client } = require('@notionhq/client');
 
-const notion = new Client({ auth: process.env.NOTION_API_KEY })
+const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
+//step 2 - get column IDs
+// async function getDB() {
+//   const res = await notion.databases.retrieve({
+//     database_id: process.env.NOTION_DATABASE_ID,
+//   });
+//   console.log(res);
+// }
+
+// getDB();
+
+// step 3 - enable it all
 async function getTags() {
   const database = await notion.databases.retrieve({
     database_id: process.env.NOTION_DATABASE_ID,
-  })
+  });
 
   return notionPropertiesById(database.properties)[
     process.env.NOTION_TAGS_ID
-  ].multi_select.options.map(option => {
-    return { id: option.id, name: option.name }
-  })
+  ].multi_select.options.map((option) => {
+    return { id: option.id, name: option.name };
+  });
 }
 
 function notionPropertiesById(properties) {
   return Object.values(properties).reduce((obj, property) => {
-    const { id, ...rest } = property
-    return { ...obj, [id]: rest }
-  }, {})
+    const { id, ...rest } = property;
+    return { ...obj, [id]: rest };
+  }, {});
 }
 
 function createSuggestion({ title, description, isProject, tags }) {
@@ -30,7 +41,7 @@ function createSuggestion({ title, description, isProject, tags }) {
       [process.env.NOTION_TITLE_ID]: {
         title: [
           {
-            type: "text",
+            type: 'text',
             text: {
               content: title,
             },
@@ -40,7 +51,7 @@ function createSuggestion({ title, description, isProject, tags }) {
       [process.env.NOTION_DESCRIPTION_ID]: {
         rich_text: [
           {
-            type: "text",
+            type: 'text',
             text: {
               content: description,
             },
@@ -54,57 +65,69 @@ function createSuggestion({ title, description, isProject, tags }) {
         number: 0,
       },
       [process.env.NOTION_TAGS_ID]: {
-        multi_select: tags.map(tag => {
-          return { id: tag.id }
+        multi_select: tags.map((tag) => {
+          return { id: tag.id };
         }),
       },
     },
-  })
+  });
 }
 
+// Fill some fields in db
+// getTags().then((tags) => {
+//   createSuggestion({
+//     title: 'Test',
+//     description: 'hello world',
+//     isProject: false,
+//     votes: 2,
+//     tags: tags,
+//   });
+// });
+
+// continuance
 async function getSuggestions() {
   const notionPages = await notion.databases.query({
     database_id: process.env.NOTION_DATABASE_ID,
-    sorts: [{ property: process.env.NOTION_VOTES_ID, direction: "descending" }],
-  })
+    sorts: [{ property: process.env.NOTION_VOTES_ID, direction: 'descending' }],
+  });
 
-  return notionPages.results.map(fromNotionObject)
+  return notionPages.results.map(fromNotionObject);
 }
 
 function fromNotionObject(notionPage) {
-  const propertiesById = notionPropertiesById(notionPage.properties)
+  const propertiesById = notionPropertiesById(notionPage.properties);
 
   return {
     id: notionPage.id,
     title: propertiesById[process.env.NOTION_TITLE_ID].title[0].plain_text,
     votes: propertiesById[process.env.NOTION_VOTES_ID].number,
     tags: propertiesById[process.env.NOTION_TAGS_ID].multi_select.map(
-      option => {
-        return { id: option.id, name: option.name }
+      (option) => {
+        return { id: option.id, name: option.name };
       }
     ),
     isProject: propertiesById[process.env.NOTION_PROJECT_ID].checkbox,
     description:
       propertiesById[process.env.NOTION_DESCRIPTION_ID].rich_text[0].text
         .content,
-  }
+  };
 }
 
 async function upVoteSuggestion(pageId) {
-  const suggestion = await getSuggestion(pageId)
-  const votes = suggestion.votes + 1
+  const suggestion = await getSuggestion(pageId);
+  const votes = suggestion.votes + 1;
   await notion.pages.update({
     page_id: pageId,
     properties: {
       [process.env.NOTION_VOTES_ID]: { number: votes },
     },
-  })
+  });
 
-  return votes
+  return votes;
 }
 
 async function getSuggestion(pageId) {
-  return fromNotionObject(await notion.pages.retrieve({ page_id: pageId }))
+  return fromNotionObject(await notion.pages.retrieve({ page_id: pageId }));
 }
 
 module.exports = {
@@ -112,4 +135,4 @@ module.exports = {
   getTags,
   getSuggestions,
   upVoteSuggestion,
-}
+};
